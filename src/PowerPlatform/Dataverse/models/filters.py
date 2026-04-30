@@ -228,7 +228,7 @@ class _InFilter(FilterExpression):
 
     def to_odata(self) -> str:
         # PropertyValues is Collection(Edm.String)
-        parts = [f'"{_format_value(v).strip("'")}"' for v in self.values]
+        parts = ['"' + _format_value(v).strip("'") + '"' for v in self.values]
         formatted = ",".join(parts)
         return f"Microsoft.Dynamics.CRM.In" f"(PropertyName='{self.column}',PropertyValues=[{formatted}])"
 
@@ -246,7 +246,7 @@ class _NotInFilter(FilterExpression):
 
     def to_odata(self) -> str:
         # Same Collection(Edm.String) rules as _InFilter.
-        parts = [f'"{_format_value(v).strip("'")}"' for v in self.values]
+        parts = ['"' + _format_value(v).strip("'") + '"' for v in self.values]
         formatted = ",".join(parts)
         return f"Microsoft.Dynamics.CRM.NotIn" f"(PropertyName='{self.column}',PropertyValues=[{formatted}])"
 
