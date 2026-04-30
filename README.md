@@ -326,7 +326,7 @@ query = (client.query.builder("contact")
 For complex logic (OR, NOT, grouping), use the composable expression tree with `where()`:
 
 ```python
-from PowerPlatform.Dataverse.models.filters import eq, gt, filter_in, between
+from PowerPlatform.Dataverse.filters import eq, gt, filter_in, between
 
 # OR conditions: (statecode = 0 OR statecode = 1) AND revenue > 100k
 for record in (client.query.builder("account")
