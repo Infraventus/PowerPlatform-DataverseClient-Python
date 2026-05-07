@@ -850,6 +850,68 @@ class TestResolveOneChangeset(unittest.TestCase):
             client._resolve_one(op)
 
 
+class TestBatchExecuteErrorResponses(unittest.TestCase):
+    """Batch execution should parse multipart error bodies from 4xx responses."""
+
+    def test_execute_allows_412_changeset_response_to_reach_parser(self):
+        """A changeset 412 response should return a failed BatchItemResponse."""
+        od = _make_od()
+        client = _BatchClient(od)
+        od._build_update.return_value = _RawRequest(
+            method="PATCH",
+            url="https://org.crm.dynamics.com/api/data/v9.2/accounts(guid-1)",
+            body=json.dumps({"name": "Updated"}),
+        )
+
+        changeset_boundary = "changesetresponse_precondition"
+        batch_boundary = "batchresponse_precondition"
+        error_body = json.dumps(
+            {
+                "error": {
+                    "code": "0x80060882",
+                    "message": (
+                        "The version of the existing record does not match "
+                        "the RowVersion property provided."
+                    ),
+                }
+            }
+        )
+        response_text = (
+            f"--{batch_boundary}\r\n"
+            f'Content-Type: multipart/mixed; boundary="{changeset_boundary}"\r\n'
+            "\r\n"
+            f"--{changeset_boundary}\r\n"
+            "Content-Type: application/http\r\n"
+            "Content-Transfer-Encoding: binary\r\n"
+            "Content-ID: 1\r\n"
+            "\r\n"
+            "HTTP/1.1 412 Precondition Failed\r\n"
+            "Content-Type: application/json; odata.metadata=minimal\r\n"
+            "\r\n"
+            f"{error_body}\r\n"
+            f"--{changeset_boundary}--\r\n"
+            f"--{batch_boundary}--\r\n"
+        )
+        mock_response = MagicMock()
+        mock_response.status_code = 412
+        mock_response.headers = {
+            "Content-Type": f'multipart/mixed; boundary="{batch_boundary}"',
+        }
+        mock_response.text = response_text
+        od._request.return_value = mock_response
+
+        changeset = _ChangeSet()
+        changeset.add_update("account", "guid-1", {"name": "Updated"})
+        result = client.execute([changeset])
+
+        od._request.assert_called_once()
+        self.assertIn(412, od._request.call_args.kwargs["expected"])
+        self.assertTrue(result.has_errors)
+        self.assertEqual(result.failed[0].status_code, 412)
+        self.assertEqual(result.failed[0].error_code, "0x80060882")
+        self.assertIn("RowVersion", result.failed[0].error_message)
+
+
 class TestRequireEntityMetadata(unittest.TestCase):
     """_require_entity_metadata raises MetadataError when table not found."""
 

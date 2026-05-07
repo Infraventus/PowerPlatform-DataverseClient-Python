@@ -277,11 +277,10 @@ class _BatchClient:
             url,
             data=body.encode("utf-8"),
             headers=headers,
-            # 400 is expected: Dataverse returns 400 for top-level batch
-            # errors (e.g. malformed body). We parse the response body to
-            # surface the service error via _parse_batch_response /
-            # _raise_top_level_batch_error rather than letting _request raise.
-            expected=(200, 202, 207, 400),
+            # Some Dataverse batch failures use a 4xx outer status while the
+            # actionable service error lives in the multipart body. Parse the
+            # body here rather than letting _request raise from a short excerpt.
+            expected=(200, 202, 207, 400, 412),
         )
         return self._parse_batch_response(response)
 
